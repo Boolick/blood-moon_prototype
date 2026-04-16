@@ -1,0 +1,23 @@
+{
+  "name": "backend_blood_moon",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch -r tsconfig-paths/register src/server.ts",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "@shared/contract": "*",
+    "ws": "^8.16.0",
+    "xstate": "^5.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.24",
+    "@types/ws": "^8.5.10",
+    "tsconfig-paths": "^4.2.0",
+    "tsx": "^4.7.1",
+    "typescript": "^5.0.0",
+    "vitest": "^4.1.4"
+  }
+}
