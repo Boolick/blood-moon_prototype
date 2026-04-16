@@ -1,0 +1,21 @@
+{
+  "name": "blood-moon-monorepo",
+  "private": true,
+  "description": "Monorepo for Blood Moon Game",
+  "workspaces": [
+    "shared",
+    "backend_blood_moon",
+    "frontend_blood_moon"
+  ],
+  "scripts": {
+    "dev:front": "npm run dev -w frontend_blood_moon",
+    "dev:back": "npm run dev -w backend_blood_moon",
+    "lint": "eslint .",
+    "build": "npm run build --workspaces"
+  },
+  "devDependencies": {
+    "typescript": "^5.0.0",
+    "eslint": "^9.0.0",
+    "prettier": "^3.0.0"
+  }
+}

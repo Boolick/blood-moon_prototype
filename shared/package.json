@@ -1,0 +1,15 @@
+{
+  "name": "@shared/contract",
+  "version": "1.0.0",
+  "type": "module",
+  "main": "dist/contract.js",
+  "types": "dist/contract.d.ts",
+  "exports": {
+    ".": "./dist/contract.js"
+  },
+  "private": true,
+  "scripts": {
+    "build": "tsc"
+  }
+}
+
