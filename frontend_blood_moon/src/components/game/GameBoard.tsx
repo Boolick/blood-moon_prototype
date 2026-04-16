@@ -286,7 +286,7 @@ export function GameBoard({ state, send }: { state: any, send: any }) {
             </div>
             
             <button 
-              onClick={() => send({ type: 'RESOLVE_BATTLES' })} 
+              onClick={() => send({ type: 'NEXT_PHASE' })} 
               className="mt-16 px-8 py-4 bg-red-600 hover:bg-red-500 text-white rounded-full font-bold text-xl transition-all shadow-[0_0_20px_rgba(239,68,68,0.4)] hover:scale-105"
             >
               Узнать Победителя

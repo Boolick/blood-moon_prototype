@@ -1,11 +1,37 @@
-import { useMachine } from '@xstate/react';
-import { gameMachine } from './machines/gameMachine';
 import { GameBoard } from './components/game/GameBoard';
 import { motion, AnimatePresence } from 'motion/react';
 import { useEffect } from 'react';
+import { useSocketStore } from './lib/socket-store';
 
 export default function App() {
-  const [state, send] = useMachine(gameMachine);
+  const { state, connect, sendIntent } = useSocketStore();
+
+  useEffect(() => {
+    connect('ws://localhost:8080');
+  }, [connect]);
+
+  if (!state) {
+    return (
+      <div className="min-h-screen bg-slate-950 flex items-center justify-center">
+        <div className="text-teal-500 animate-pulse">Подключение к Дворцу...</div>
+      </div>
+    );
+  }
+
+  const phase = state.phase;
+
+  const mockState = {
+    context: state,
+    value: phase,
+    matches: (p: string) => phase === p,
+    can: (event: any) => {
+      if (phase === 'rest_phase' && event.type === 'END_ROUND') {
+        const p1 = state.players.find(p => p.id === 'p1');
+        return (p1?.inventory?.hand?.length || 0) <= 3;
+      }
+      return true;
+    }
+  };
 
   return (
     <div className="atlantis-root min-h-screen bg-slate-950 text-slate-50 font-sans overflow-hidden relative selection:bg-teal-500/30">
@@ -14,7 +40,7 @@ export default function App() {
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_100%,rgba(234,179,8,0.05),transparent_50%)] pointer-events-none" />
 
       <AnimatePresence mode="wait">
-        {state.value === 'lobby' && (
+        {phase === 'lobby' && (
           <motion.div 
             key="lobby"
             initial={{ opacity: 0, scale: 0.95 }}
@@ -30,7 +56,7 @@ export default function App() {
             </div>
             
             <button 
-              onClick={() => send({ type: 'START_GAME' })}
+              onClick={() => sendIntent({ type: 'START_GAME' })}
               className="px-8 py-4 bg-teal-600 hover:bg-teal-500 text-white rounded-full font-bold text-lg transition-all hover:shadow-[0_0_20px_rgba(13,148,136,0.5)] hover:-translate-y-1 active:translate-y-0"
             >
               Войти во Дворец
@@ -38,14 +64,14 @@ export default function App() {
           </motion.div>
         )}
 
-        {state.value !== 'lobby' && (
+        {phase !== 'lobby' && (
           <motion.div 
             key="game"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             className="h-screen w-full relative z-10"
           >
-            <GameBoard state={state} send={send} />
+            <GameBoard state={mockState as any} send={sendIntent} />
           </motion.div>
         )}
       </AnimatePresence>
