@@ -4,13 +4,13 @@ import { initialContext } from "./actions/round.js";
 export const gameMachine = gameMachineSetup.createMachine({
   id: "blood-moon-game",
   initial: "lobby",
-  context: initialContext,
+  context: initialContext as any,
   states: {
     lobby: {
       on: {
         START_GAME: {
           target: "chest_selection",
-          actions: ["logEvent"],
+          actions: ["logEvent" as any],
         },
       },
     },
@@ -18,12 +18,12 @@ export const gameMachine = gameMachineSetup.createMachine({
       always: [{ target: "game_over", guard: "isGameOver" }],
       on: {
         SELECT_CHEST: {
-          actions: ["selectChest"],
+          actions: ["selectChest" as any],
         },
         NEXT_PHASE: {
           target: "battle_phase",
           guard: "isChestSelected",
-          actions: ["logEvent"],
+          actions: ["logEvent" as any],
         },
       },
     },
@@ -31,20 +31,20 @@ export const gameMachine = gameMachineSetup.createMachine({
       on: {
         NEXT_PHASE: {
           target: "chest_reveal",
-          actions: ["logEvent", "resolveBattleLogic"],
+          actions: ["logEvent" as any, "resolveBattleLogic" as any],
         },
         USE_CONSUMABLE: {
-          actions: ["useConsumable"],
+          actions: ["useConsumable" as any],
         },
       },
     },
     chest_reveal: {
-      entry: ["revealChestCards"],
+      entry: ["revealChestCards" as any],
       always: [{ target: "game_over", guard: "isGameOver" }],
       on: {
         NEXT_PHASE: {
           target: "rest_phase",
-          actions: ["logEvent"],
+          actions: ["logEvent" as any],
         },
       },
     },
@@ -52,21 +52,21 @@ export const gameMachine = gameMachineSetup.createMachine({
       always: [{ target: "game_over", guard: "isGameOver" }],
       on: {
         EQUIP_ITEM: {
-          actions: ["equipItem"],
+          actions: ["equipItem" as any],
         },
         UNEQUIP_ITEM: {
-          actions: ["unequipItem"],
+          actions: ["unequipItem" as any],
         },
         DISCARD_ITEM: {
-          actions: ["discardItem"],
+          actions: ["discardItem" as any],
         },
         USE_CONSUMABLE: {
-          actions: ["useConsumable"],
+          actions: ["useConsumable" as any],
         },
         END_ROUND: {
           target: "chest_selection",
           guard: "isInventoryValid",
-          actions: ["logEvent", "incrementRound"],
+          actions: ["logEvent" as any, "incrementRound" as any],
         },
       },
     },
@@ -74,7 +74,7 @@ export const gameMachine = gameMachineSetup.createMachine({
       on: {
         RESTART_GAME: {
           target: "lobby",
-          actions: ["resetGame", "logEvent"],
+          actions: ["resetGame" as any, "logEvent" as any],
         },
       },
     },

@@ -1,13 +1,13 @@
 import { assign } from "xstate";
-import { CardType, GAME_CONSTANTS } from "@shared/contract";
+import { CardType, GAME_CONSTANTS, Player, GameCard, ConsumableCard } from "@shared/contract";
 
 export const equipItem = assign({
-  players: ({ context, event }) => {
+  players: ({ context, event }: any) => {
     if (event.type !== "EQUIP_ITEM") return context.players;
-    return context.players.map((p) => {
+    return context.players.map((p: Player) => {
       if (p.id !== event.playerId) return p;
       const cardIndex = p.inventory.hand.findIndex(
-        (c) => c.id === event.cardId
+        (c: GameCard) => c.id === event.cardId
       );
       if (cardIndex === -1) return p;
       const card = p.inventory.hand[cardIndex];
@@ -34,12 +34,12 @@ export const equipItem = assign({
 });
 
 export const unequipItem = assign({
-  players: ({ context, event }) => {
+  players: ({ context, event }: any) => {
     if (event.type !== "UNEQUIP_ITEM") return context.players;
-    return context.players.map((p) => {
+    return context.players.map((p: Player) => {
       if (p.id !== event.playerId) return p;
       const cardIndex = p.inventory.equipment.findIndex(
-        (c) => c.id === event.cardId
+        (c: GameCard) => c.id === event.cardId
       );
       if (cardIndex === -1) return p;
       const card = p.inventory.equipment[cardIndex];
@@ -61,13 +61,13 @@ export const unequipItem = assign({
 });
 
 export const discardItem = assign({
-  players: ({ context, event }) => {
+  players: ({ context, event }: any) => {
     if (event.type !== "DISCARD_ITEM") return context.players;
-    return context.players.map((p) => {
+    return context.players.map((p: Player) => {
       if (p.id !== event.playerId) return p;
-      const inHand = p.inventory.hand.filter((c) => c.id !== event.cardId);
+      const inHand = p.inventory.hand.filter((c: GameCard) => c.id !== event.cardId);
       const inEquip = p.inventory.equipment.filter(
-        (c) => c.id !== event.cardId
+        (c: GameCard) => c.id !== event.cardId
       );
       return {
         ...p,
@@ -81,16 +81,17 @@ export const discardItem = assign({
 });
 
 export const useConsumable = assign({
-  players: ({ context, event }) => {
+  players: ({ context, event }: any) => {
     if (event.type !== "USE_CONSUMABLE") return context.players;
-    return context.players.map((p) => {
+    return context.players.map((p: Player) => {
       if (p.id !== event.playerId) return p;
       const cardIndex = p.inventory.hand.findIndex(
-        (c) => c.id === event.cardId
+        (c: GameCard) => c.id === event.cardId
       );
       if (cardIndex === -1) return p;
       const card = p.inventory.hand[cardIndex];
       if (card.type !== CardType.CONSUMABLE) return p;
+      const consumableCard = card as ConsumableCard;
 
       const newHand = [...p.inventory.hand];
       newHand.splice(cardIndex, 1);
@@ -100,10 +101,10 @@ export const useConsumable = assign({
       const maxHealth =
         p.character?.maxHealth || GAME_CONSTANTS.INITIAL_PLAYER_HEALTH;
 
-      if (card.effectType === "HEAL") {
-        newHealth = Math.min(maxHealth, newHealth + card.value);
-      } else if (card.effectType === "GOLD_BOOST") {
-        newGold += card.value;
+      if (consumableCard.effectType === "HEAL") {
+        newHealth = Math.min(maxHealth, newHealth + consumableCard.value);
+      } else if (consumableCard.effectType === "GOLD_BOOST") {
+        newGold += consumableCard.value;
       }
 
       return {

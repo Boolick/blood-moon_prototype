@@ -1,15 +1,15 @@
 import { assign } from "xstate";
-import { Player } from "@shared/contract";
-import { calculateStrength, calculateSurvivalResource } from "@shared/utils";
+import { Player, Chest } from "@shared/contract";
+import { calculateStrength, resolveBattle } from "../../../../shared/utils.js";
 
 export const selectChest = assign({
-  activeChestId: ({ context, event }) => {
+  activeChestId: ({ context, event }: any) => {
     if (event.type !== "SELECT_CHEST") return context.activeChestId;
-    const chest = context.chests.find((c) => c.id === event.chestId);
+    const chest = context.chests.find((c: Chest) => c.id === event.chestId);
     if (chest && chest.isOpened) return context.activeChestId;
     return event.chestId;
   },
-  eventLog: ({ context, event }) => {
+  eventLog: ({ context, event }: any) => {
     if (event.type !== "SELECT_CHEST") return context.eventLog;
     return [
       ...context.eventLog,
@@ -19,24 +19,20 @@ export const selectChest = assign({
 });
 
 export const resolveBattleLogic = assign({
-  players: ({ context }) => {
-    const activePlayers = context.players.filter(p => p.isAlive);
+  players: ({ context }: any) => {
+    const activePlayers = context.players.filter((p: Player) => p.isAlive);
     if (activePlayers.length < 2) return context.players;
 
-    // Сортируем по силе, затем по золоту (tie-breaker)
-    const sorted = [...activePlayers].sort((a, b) => {
-      const strA = calculateStrength(a);
-      const strB = calculateStrength(b);
-      if (strA !== strB) return strB - strA;
-      return b.gold - a.gold; // Tie-breaker: больше золота = выше место
-    });
+    const participants = activePlayers.map((p: Player) => ({
+      player: p,
+      totalStrength: calculateStrength(p),
+    }));
 
-    const winner = sorted[0];
-    const losers = sorted.slice(1);
+    const winner = resolveBattle(participants);
 
-    return context.players.map((p) => {
-      const isLoser = losers.some(l => l.id === p.id);
-      if (isLoser) {
+    return context.players.map((p: Player) => {
+      // Any active player who is not the winner loses health
+      if (p.isAlive && winner && p.id !== winner.id) {
         const newHealth = Math.max(0, p.currentHealth - 1);
         return {
           ...p,
@@ -47,33 +43,44 @@ export const resolveBattleLogic = assign({
       return p;
     });
   },
-  lastLoserId: ({ context }) => {
-    const activePlayers = context.players.filter(p => p.isAlive);
+  lastLoserId: ({ context }: any) => {
+    const activePlayers = context.players.filter((p: Player) => p.isAlive);
     if (activePlayers.length < 2) return null;
 
-    const sorted = [...activePlayers].sort((a, b) => {
-      const strA = calculateStrength(a);
-      const strB = calculateStrength(b);
-      if (strA !== strB) return strB - strA;
-      return b.gold - a.gold;
+    // Use the same tie-breaker logic as resolveBattle to find the loser
+    const participants = activePlayers.map((p: Player) => ({
+      player: p,
+      totalStrength: calculateStrength(p),
+    }));
+
+    const sorted = [...participants].sort((a, b) => {
+      if (b.totalStrength !== a.totalStrength) {
+        return b.totalStrength - a.totalStrength;
+      }
+      return b.player.gold - a.player.gold;
     });
 
-    // Для простоты MVP считаем "последним проигравшим" того, кто занял последнее место в этой битве
-    return sorted[sorted.length - 1].id;
+    // The loser is the last one in the sorted list
+    return sorted[sorted.length - 1].player.id;
   },
-  eventLog: ({ context }) => {
-    const activePlayers = context.players.filter(p => p.isAlive);
+  eventLog: ({ context }: any) => {
+    const activePlayers = context.players.filter((p: Player) => p.isAlive);
     if (activePlayers.length < 2) return context.eventLog;
 
-    const sorted = [...activePlayers].sort((a, b) => {
-      const strA = calculateStrength(a);
-      const strB = calculateStrength(b);
-      if (strA !== strB) return strB - strA;
-      return b.gold - a.gold;
+    const participants = activePlayers.map((p: Player) => ({
+      player: p,
+      totalStrength: calculateStrength(p),
+    }));
+
+    const sorted = [...participants].sort((a, b) => {
+      if (b.totalStrength !== a.totalStrength) {
+        return b.totalStrength - a.totalStrength;
+      }
+      return b.player.gold - a.player.gold;
     });
 
-    const winner = sorted[0];
-    const loser = sorted[sorted.length - 1];
+    const winner = sorted[0].player;
+    const loser = sorted[sorted.length - 1].player;
 
     let msg = `${winner.name} побеждает в битве!`;
     if (calculateStrength(winner) === calculateStrength(loser)) {
@@ -85,28 +92,20 @@ export const resolveBattleLogic = assign({
 });
 
 export const revealChestCards = assign({
-  players: ({ context }) => {
-    const winnerId = context.players.find(
-      (p) => p.isAlive && p.id !== context.lastLoserId // Simplified winner logic for MVP
-    )?.id;
-    
-    // In a multi-player scenario, we might want to be more specific about who won the chest
-    // For now, let's assume the one who didn't lose health (or the top player) wins
-    const activePlayers = context.players.filter(p => p.isAlive);
-    const sorted = [...activePlayers].sort((a, b) => {
-        const strA = calculateStrength(a);
-        const strB = calculateStrength(b);
-        if (strA !== strB) return strB - strA;
-        return b.gold - a.gold;
-    });
-    const trueWinner = sorted[0];
+  players: ({ context }: any) => {
+    const activePlayers = context.players.filter((p: Player) => p.isAlive);
+    const participants = activePlayers.map((p: Player) => ({
+      player: p,
+      totalStrength: calculateStrength(p),
+    }));
+    const trueWinner = resolveBattle(participants);
 
     if (!trueWinner || !context.activeChestId) return context.players;
 
-    const chest = context.chests.find((c) => c.id === context.activeChestId);
+    const chest = context.chests.find((c: Chest) => c.id === context.activeChestId);
     if (!chest) return context.players;
 
-    return context.players.map((p) => {
+    return context.players.map((p: Player) => {
       if (p.id === trueWinner.id) {
         return {
           ...p,
@@ -119,31 +118,29 @@ export const revealChestCards = assign({
       return p;
     });
   },
-  chests: ({ context }) => {
+  chests: ({ context }: any) => {
     if (!context.activeChestId) return context.chests;
-    return context.chests.map((c) => {
+    return context.chests.map((c: Chest) => {
       if (c.id === context.activeChestId) {
         return { ...c, isOpened: true, cards: [] };
       }
       return c;
     });
   },
-  globalTimer: ({ context }) => {
-    const chest = context.chests.find((c) => c.id === context.activeChestId);
+  globalTimer: ({ context }: any) => {
+    const chest = context.chests.find((c: Chest) => c.id === context.activeChestId);
     if (!chest || !chest.timerCard) return context.globalTimer;
     return context.globalTimer + chest.timerCard.timerModifier;
   },
-  eventLog: ({ context }) => {
-    const activePlayers = context.players.filter(p => p.isAlive);
-    const sorted = [...activePlayers].sort((a, b) => {
-        const strA = calculateStrength(a);
-        const strB = calculateStrength(b);
-        if (strA !== strB) return strB - strA;
-        return b.gold - a.gold;
-    });
-    const winner = sorted[0];
+  eventLog: ({ context }: any) => {
+    const activePlayers = context.players.filter((p: Player) => p.isAlive);
+    const participants = activePlayers.map((p: Player) => ({
+      player: p,
+      totalStrength: calculateStrength(p),
+    }));
+    const winner = resolveBattle(participants);
 
-    const chest = context.chests.find((c) => c.id === context.activeChestId);
+    const chest = context.chests.find((c: Chest) => c.id === context.activeChestId);
     const logs = [...context.eventLog];
     if (winner && context.activeChestId) {
       logs.push(`${winner.name} забирает содержимое сундука!`);

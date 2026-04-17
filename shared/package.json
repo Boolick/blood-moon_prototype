@@ -2,14 +2,16 @@
   "name": "@shared/contract",
   "version": "1.0.0",
   "type": "module",
-  "main": "dist/contract.js",
-  "types": "dist/contract.d.ts",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
   "exports": {
-    ".": "./dist/contract.js"
+    ".": "./dist/index.js",
+    "./utils": "./dist/utils.js",
+    "./contract": "./dist/contract.js"
   },
   "private": true,
   "scripts": {
-    "build": "tsc"
+    "build": "tsc",
+    "test": "echo 'No tests for shared'"
   }
 }
-
