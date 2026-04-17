@@ -8,7 +8,7 @@ import { Clock, ScrollText, User } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { DndContext, DragEndEvent } from '@dnd-kit/core';
 import { useRef, useEffect } from 'react';
-import { calculateFinalGold, calculateStrength } from '@shared/utils';
+import { calculateFinalGold, calculateStrength, calculateSurvivalResource } from '@shared/utils';
 
 export function GameBoard({ state, send }: { state: any, send: any }) {
   const { context } = state;
@@ -96,7 +96,11 @@ export function GameBoard({ state, send }: { state: any, send: any }) {
                   <span className="text-yellow-400 font-mono">{p.gold}G</span>
                   <span className={cn("font-mono", context.lastLoserId === p.id ? "text-red-500 animate-pulse" : "text-red-400")}>{p.currentHealth}HP</span>
                 </div>
-                <div className="text-slate-600 text-[10px] mt-1">Экип: {p.inventory?.equipment?.length || 0}/2</div>
+                <div className="text-slate-500 text-[9px] mt-1 flex justify-between">
+                  <span>Сила: {calculateStrength(p)}</span>
+                  <span>SR: {calculateSurvivalResource(p).total}</span>
+                </div>
+                <div className="text-slate-600 text-[10px]">Экип: {p.inventory?.equipment?.length || 0}/2</div>
               </div>
             ))}
           </div>
@@ -182,6 +186,10 @@ export function GameBoard({ state, send }: { state: any, send: any }) {
                   <div className="flex items-center justify-between bg-slate-950 px-3 py-2 rounded-lg border border-slate-800 shadow-inner">
                     <span className="text-xs text-slate-500 font-bold uppercase">Здоровье</span>
                     <motion.span key={myPlayer.currentHealth} className={cn("font-mono font-bold", context.lastLoserId === myPlayerId ? "text-red-500 animate-pulse" : "text-red-400")}>{myPlayer.currentHealth}HP</motion.span>
+                  </div>
+                  <div className="flex items-center justify-between bg-slate-950 px-3 py-2 rounded-lg border border-slate-800 shadow-inner">
+                    <span className="text-xs text-slate-500 font-bold uppercase">Сила / SR</span>
+                    <span className="font-mono text-teal-400 font-bold">{calculateStrength(myPlayer)} / {calculateSurvivalResource(myPlayer).total}</span>
                   </div>
                 </div>
               </div>

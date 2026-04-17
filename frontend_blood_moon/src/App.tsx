@@ -4,13 +4,13 @@ import { useEffect } from 'react';
 import { useSocketStore } from './lib/socket-store';
 
 export default function App() {
-  const { state, connect, sendIntent } = useSocketStore();
+  const { state, snapshot, connect, sendIntent } = useSocketStore();
 
   useEffect(() => {
     connect('ws://localhost:8080');
   }, [connect]);
 
-  if (!state) {
+  if (!state || !snapshot) {
     return (
       <div className="min-h-screen bg-slate-950 flex items-center justify-center">
         <div className="text-teal-500 animate-pulse">Подключение к Дворцу...</div>
@@ -19,25 +19,20 @@ export default function App() {
   }
 
   const phase = state.phase;
-
-  const mockState = {
-    context: state,
-    value: phase,
-    matches: (p: string) => phase === p,
-    can: (event: any) => {
-      if (phase === 'rest_phase' && event.type === 'END_ROUND') {
-        const p1 = state.players.find(p => p.id === 'p1');
-        return (p1?.inventory?.hand?.length || 0) <= 3;
-      }
-      return true;
-    }
-  };
+  const isSyncing = snapshot.matches('syncing');
 
   return (
     <div className="atlantis-root min-h-screen bg-slate-950 text-slate-50 font-sans overflow-hidden relative selection:bg-teal-500/30">
       {/* Background ambient glow */}
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_0%,rgba(13,148,136,0.15),transparent_50%)] pointer-events-none" />
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_100%,rgba(234,179,8,0.05),transparent_50%)] pointer-events-none" />
+
+      {isSyncing && (
+        <div className="absolute top-4 right-4 z-[100] flex items-center gap-2 bg-teal-500/20 backdrop-blur-md px-3 py-1 rounded-full border border-teal-500/30">
+          <div className="w-2 h-2 bg-teal-500 rounded-full animate-ping" />
+          <span className="text-[10px] font-bold text-teal-400 uppercase tracking-widest">Синхронизация...</span>
+        </div>
+      )}
 
       <AnimatePresence mode="wait">
         {phase === 'lobby' && (
@@ -71,7 +66,7 @@ export default function App() {
             animate={{ opacity: 1 }}
             className="h-screen w-full relative z-10"
           >
-            <GameBoard state={mockState as any} send={sendIntent} />
+            <GameBoard state={snapshot} send={sendIntent} />
           </motion.div>
         )}
       </AnimatePresence>
