@@ -1,45 +1,7 @@
-import { assign, setup } from "xstate";
-import {
-  GamePhase,
-  GameState,
-  GameIntent,
-  GAME_CONSTANTS,
-  Player,
-  Chest,
-} from "@shared/contract";
+import { gameMachineSetup } from "./setup.js";
+import { initialContext } from "./actions/round.js";
 
-const initialContext: Omit<GameState, "phase"> = {
-  players: [],
-  chests: [],
-  globalTimer: GAME_CONSTANTS.INITIAL_GLOBAL_TIMER,
-  roundNumber: 1,
-  eventLog: ["Игра инициализирована"],
-  activeChestId: null,
-  lastLoserId: null,
-};
-
-export const gameMachine = setup({
-  types: {
-    context: {} as Omit<GameState, "phase">,
-    events: {} as GameIntent,
-  },
-  actions: {
-    incrementRound: assign({
-      roundNumber: ({ context }) => context.roundNumber + 1,
-      eventLog: ({ context }) => [
-        ...context.eventLog,
-        `Начался раунд ${context.roundNumber + 1}`,
-      ],
-    }),
-    logEvent: assign({
-      eventLog: ({ context, event }) => [
-        ...context.eventLog,
-        `Получено событие: ${event.type}`,
-      ],
-    }),
-    resetGame: assign(initialContext),
-  },
-}).createMachine({
+export const gameMachine = gameMachineSetup.createMachine({
   id: "blood-moon-game",
   initial: "lobby",
   context: initialContext,
@@ -53,9 +15,14 @@ export const gameMachine = setup({
       },
     },
     chest_selection: {
+      always: [{ target: "game_over", guard: "isGameOver" }],
       on: {
+        SELECT_CHEST: {
+          actions: ["selectChest"],
+        },
         NEXT_PHASE: {
           target: "battle_phase",
+          guard: "isChestSelected",
           actions: ["logEvent"],
         },
       },
@@ -64,11 +31,16 @@ export const gameMachine = setup({
       on: {
         NEXT_PHASE: {
           target: "chest_reveal",
-          actions: ["logEvent"],
+          actions: ["logEvent", "resolveBattleLogic"],
+        },
+        USE_CONSUMABLE: {
+          actions: ["useConsumable"],
         },
       },
     },
     chest_reveal: {
+      entry: ["revealChestCards"],
+      always: [{ target: "game_over", guard: "isGameOver" }],
       on: {
         NEXT_PHASE: {
           target: "rest_phase",
@@ -77,9 +49,23 @@ export const gameMachine = setup({
       },
     },
     rest_phase: {
+      always: [{ target: "game_over", guard: "isGameOver" }],
       on: {
+        EQUIP_ITEM: {
+          actions: ["equipItem"],
+        },
+        UNEQUIP_ITEM: {
+          actions: ["unequipItem"],
+        },
+        DISCARD_ITEM: {
+          actions: ["discardItem"],
+        },
+        USE_CONSUMABLE: {
+          actions: ["useConsumable"],
+        },
         END_ROUND: {
           target: "chest_selection",
+          guard: "isInventoryValid",
           actions: ["logEvent", "incrementRound"],
         },
       },
@@ -94,4 +80,3 @@ export const gameMachine = setup({
     },
   },
 });
-

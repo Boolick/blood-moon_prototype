@@ -1,4 +1,17 @@
-import { Player, SurvivalResource, ObjectiveType } from './types';
+import { Player, SurvivalResource, ObjectiveType, GAME_CONSTANTS } from './contract.js';
+
+/**
+ * Рассчитывает текущую Силу игрока.
+ * Сила = Базовая сила персонажа + бонусы от экипированных предметов
+ */
+export function calculateStrength(player: Player): number {
+  const baseStrength = player.character?.baseStrength ?? GAME_CONSTANTS.BASE_CHARACTER_STRENGTH;
+  const equipmentStrength = player.inventory.equipment.reduce(
+    (acc, item) => acc + (item.strengthBonus || 0), 
+    0
+  );
+  return baseStrength + equipmentStrength;
+}
 
 /**
  * Рассчитывает Ресурс Выживания для игрока.
@@ -7,21 +20,13 @@ import { Player, SurvivalResource, ObjectiveType } from './types';
 export function calculateSurvivalResource(player: Player): SurvivalResource {
   const health = player.currentHealth;
   const gold = player.gold;
-  
-  // Базовая сила от персонажа + бонусы от экипированных предметов
-  const baseStrength = player.character?.baseStrength ?? 0;
-  const equipmentStrength = player.inventory.equipment.reduce(
-    (acc, item) => acc + item.strengthBonus, 
-    0
-  );
-  
-  const totalStrength = baseStrength + equipmentStrength;
+  const strength = calculateStrength(player);
   
   return {
-    total: health + totalStrength + gold,
+    total: health + strength + gold,
     breakdown: {
       health,
-      strength: totalStrength,
+      strength,
       gold,
     }
   };
@@ -70,27 +75,20 @@ export function calculateFinalGold(player: Player, allPlayers: Player[]): number
 
 /**
  * Определяет победителя в битве.
- * Сначала сравнивается общая сила (Лидер + Союзники).
- * При ничьей побеждает Лидер с наибольшим Ресурсом Выживания.
+ * Сначала сравнивается общая сила.
+ * При ничьей побеждает Лидер с наибольшим количеством золота.
  */
 export function resolveBattle(participants: { player: Player, totalStrength: number }[]): Player | null {
   if (participants.length === 0) return null;
   if (participants.length === 1) return participants[0].player;
 
-  // Сортируем по силе по убыванию
-  const sortedByStrength = [...participants].sort((a, b) => b.totalStrength - a.totalStrength);
-  const highestStrength = sortedByStrength[0].totalStrength;
-  
-  const tiedLeaders = sortedByStrength.filter(p => p.totalStrength === highestStrength);
-  
-  if (tiedLeaders.length === 1) {
-    return tiedLeaders[0].player;
-  }
-  
-  // Ничья: побеждает тот, у кого выше Ресурс Выживания
-  const sortedBySurvival = tiedLeaders.sort((a, b) => {
-    return calculateSurvivalResource(b.player).total - calculateSurvivalResource(a.player).total;
+  // Сортируем по силе по убыванию, затем по золоту
+  const sorted = [...participants].sort((a, b) => {
+    if (b.totalStrength !== a.totalStrength) {
+      return b.totalStrength - a.totalStrength;
+    }
+    return b.player.gold - a.player.gold;
   });
   
-  return sortedBySurvival[0].player;
+  return sorted[0].player;
 }

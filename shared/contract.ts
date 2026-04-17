@@ -95,6 +95,16 @@ export interface Chest {
   isOpened: boolean;
 }
 
+// --- Survival Resource ---
+export interface SurvivalResource {
+  total: number;
+  breakdown: {
+    health: number;
+    strength: number;
+    gold: number;
+  };
+}
+
 // --- GLOBAL GAME STATE EXPECTED BY FRONTEND ---
 export type GamePhase = 
   | 'lobby' 
