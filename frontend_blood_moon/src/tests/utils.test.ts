@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { calculateSurvivalResource, calculateFinalGold, resolveBattle } from '../entities/utils';
+import { calculateSurvivalResource, calculateFinalGold, resolveBattle } from '@shared/utils';
 import { Player, CardType, ObjectiveType, CharacterCard, TreasureCard, ObjectiveCard } from '../entities/types';
 
 const mockCharacter: CharacterCard = {
@@ -138,10 +138,10 @@ describe('Utils', () => {
       expect(winner?.id).toBe('p1');
     });
 
-    it('should resolve ties using Survival Resource', () => {
-      // p1 has 10 health, 0 gold -> SR = 10
+    it('should resolve ties using Gold', () => {
+      // p1 has 10 health, 0 gold
       const p1 = createMockPlayer({ id: 'p1', currentHealth: 10, gold: 0 });
-      // p2 has 10 health, 5 gold -> SR = 15
+      // p2 has 10 health, 5 gold
       const p2 = createMockPlayer({ id: 'p2', currentHealth: 10, gold: 5 });
 
       const winner = resolveBattle([
@@ -149,7 +149,7 @@ describe('Utils', () => {
         { player: p2, totalStrength: 10 }, // Tie in strength
       ]);
 
-      // p2 should win because of higher Survival Resource
+      // p2 should win because of higher Gold
       expect(winner?.id).toBe('p2');
     });
   });

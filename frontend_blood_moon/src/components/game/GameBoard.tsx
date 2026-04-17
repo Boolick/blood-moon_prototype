@@ -8,7 +8,7 @@ import { Clock, ScrollText, User } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { DndContext, DragEndEvent } from '@dnd-kit/core';
 import { useRef, useEffect } from 'react';
-import { calculateFinalGold } from '../../entities/utils';
+import { calculateFinalGold, calculateStrength } from '@shared/utils';
 
 export function GameBoard({ state, send }: { state: any, send: any }) {
   const { context } = state;
@@ -47,13 +47,6 @@ export function GameBoard({ state, send }: { state: any, send: any }) {
   const otherPlayers = context.players.filter((p: any) => p.id !== myPlayerId);
   const treasureCount = myPlayer?.inventory?.equipment?.filter((c: any) => c.type === 'TREASURE').length || 0;
   const isEquipmentFull = treasureCount >= 2;
-
-  const calculatePlayerStrength = (player: any) => {
-    if (!player) return 0;
-    const base = player.character?.baseStrength || 5;
-    const equip = player.inventory?.equipment?.reduce((sum: number, item: any) => sum + (item.strengthBonus || 0), 0) || 0;
-    return base + equip;
-  };
 
   return (
     <DndContext onDragEnd={handleDragEnd}>
@@ -271,7 +264,7 @@ export function GameBoard({ state, send }: { state: any, send: any }) {
               {/* Player 1 */}
               <div className="flex flex-col items-center gap-4">
                 <div className="text-2xl font-bold text-teal-400">{context.players[0]?.name}</div>
-                <div className="text-6xl font-black text-white">{calculatePlayerStrength(context.players[0])}</div>
+                <div className="text-6xl font-black text-white">{calculateStrength(context.players[0])}</div>
                 <div className="text-sm text-slate-400 uppercase tracking-widest">Сила</div>
               </div>
               
@@ -280,7 +273,7 @@ export function GameBoard({ state, send }: { state: any, send: any }) {
               {/* Player 2 */}
               <div className="flex flex-col items-center gap-4">
                 <div className="text-2xl font-bold text-teal-400">{context.players[1]?.name}</div>
-                <div className="text-6xl font-black text-white">{calculatePlayerStrength(context.players[1])}</div>
+                <div className="text-6xl font-black text-white">{calculateStrength(context.players[1])}</div>
                 <div className="text-sm text-slate-400 uppercase tracking-widest">Сила</div>
               </div>
             </div>
