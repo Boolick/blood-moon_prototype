@@ -1,25 +1,52 @@
-import { setup, assign } from "xstate";
-import { GameState, GameIntent, GAME_CONSTANTS } from "@shared/contract";
+import { setup, assign } from 'xstate';
+import { GameState, GameIntent } from '@shared/contract';
 
+export type GameContext = GameState;
+
+export type GameEvent =
+  | { type: 'SYNC_STATE'; state: GameState }
+  | GameIntent
+  | { type: 'TEST_SET_CONTEXT'; context: Partial<GameState> }
+  | { type: 'RESOLVE_BATTLES' };
+
+const INITIAL_CONTEXT: GameContext = {
+  players: [],
+  chests: [],
+  globalTimer: 10,
+  roundNumber: 0,
+  eventLog: ['Добро пожаловать во Дворец Атлантиды!'],
+  activeChestId: null,
+  lastLoserId: null,
+  phase: 'lobby',
+};
+
+/**
+ * Основная стейт-машина игры "Дворец Атлантиды" (XState v5)
+ * Теперь она "глупая" и синхронизируется с сервером.
+ */
 export const gameMachine = setup({
   types: {
-    context: {} as Omit<GameState, "phase">,
-    events: {} as GameIntent | { type: 'TEST_SET_CONTEXT'; context: Partial<GameState> } | { type: 'RESOLVE_BATTLES' },
+    context: {} as GameContext,
+    events: {} as GameEvent,
   },
   guards: {
-    isGameOver: ({ context }) => {
-      // In the mock for testing, we just return false if it's not explicitly game over.
-      // We will handle the game over explicitly where it is tested.
-      if (context.globalTimer === 0) return true;
-      return false;
-    },
+    // Проверка лимита инвентаря (макс 3 карты в руке)
     isInventoryValid: ({ context }) => {
-      if (!context.players) return true;
-      return context.players.every((p: any) => p.inventory && p.inventory.hand && p.inventory.hand.length <= GAME_CONSTANTS.MAX_HAND_SIZE);
+      const p1 = context.players.find(p => p.id === 'p1');
+      return (p1?.inventory?.hand?.length || 0) <= 3;
     },
-    isChestSelected: () => true,
+    // Проверка, выбран ли сундук
+    isChestSelected: ({ context }) => {
+      return context.activeChestId !== null;
+    },
   },
   actions: {
+    syncState: assign(({ event }) => {
+      if (event.type === 'SYNC_STATE') {
+        return event.state;
+      }
+      return {};
+    }),
     testSetContext: assign(({ context, event }) => {
       if (event.type === 'TEST_SET_CONTEXT') {
         return { ...context, ...event.context };
@@ -28,21 +55,29 @@ export const gameMachine = setup({
     }),
   },
 }).createMachine({
-  id: "atlantisGameThin",
-  initial: "lobby",
-  context: {
-    players: [],
-    chests: [],
-    globalTimer: 10,
-    roundNumber: 1,
-    eventLog: [],
-    activeChestId: null,
-    lastLoserId: null,
+  id: 'atlantisGame',
+  initial: 'lobby',
+  context: INITIAL_CONTEXT,
+  on: {
+    SYNC_STATE: {
+      actions: 'syncState',
+      target: '.checkPhase',
+    },
   },
   states: {
+    checkPhase: {
+      always: [
+        { target: 'lobby', guard: ({ context }) => context.phase === 'lobby' },
+        { target: 'chest_selection', guard: ({ context }) => context.phase === 'chest_selection' },
+        { target: 'battle_phase', guard: ({ context }) => context.phase === 'battle_phase' },
+        { target: 'chest_reveal', guard: ({ context }) => context.phase === 'chest_reveal' },
+        { target: 'rest_phase', guard: ({ context }) => context.phase === 'rest_phase' },
+        { target: 'game_over', guard: ({ context }) => context.phase === 'game_over' },
+      ],
+    },
     lobby: {
       on: {
-        START_GAME: "chest_selection",
+        START_GAME: 'syncing',
         TEST_SET_CONTEXT: { actions: "testSetContext" },
       },
     },
@@ -53,49 +88,53 @@ export const gameMachine = setup({
       always: "round_start",
     },
     round_start: {
-      always: [
-        { target: "game_over", guard: "isGameOver" },
-        { target: "chest_selection" },
-      ],
+      always: "chest_selection",
     },
     chest_selection: {
       on: {
-        NEXT_PHASE: { target: "battle_phase", guard: "isChestSelected" },
+        SELECT_CHEST: 'syncing',
+        NEXT_PHASE: {
+          target: 'syncing',
+          guard: 'isChestSelected',
+        },
         TEST_SET_CONTEXT: { actions: "testSetContext" },
       },
     },
     battle_phase: {
       on: {
+        NEXT_PHASE: 'syncing',
+        USE_CONSUMABLE: 'syncing',
         RESOLVE_BATTLES: "rest_phase",
         TEST_SET_CONTEXT: { actions: "testSetContext" },
       },
     },
     chest_reveal: {
-      always: [
-        { target: "game_over", guard: "isGameOver" },
-      ],
       on: {
-        NEXT_PHASE: "rest_phase",
+        NEXT_PHASE: 'syncing',
         TEST_SET_CONTEXT: { actions: "testSetContext" },
       },
     },
     rest_phase: {
-      always: [
-        { target: "game_over", guard: "isGameOver" },
-      ],
       on: {
+        EQUIP_ITEM: 'syncing',
+        UNEQUIP_ITEM: 'syncing',
+        DISCARD_ITEM: 'syncing',
+        USE_CONSUMABLE: 'syncing',
         END_ROUND: {
-          target: "round_start",
-          guard: "isInventoryValid",
+          target: 'syncing',
+          guard: 'isInventoryValid',
         },
         TEST_SET_CONTEXT: { actions: "testSetContext" },
       },
     },
     game_over: {
       on: {
-        RESTART_GAME: "lobby",
+        RESTART_GAME: 'syncing',
         TEST_SET_CONTEXT: { actions: "testSetContext" },
       },
+    },
+    syncing: {
+      // Состояние ожидания обновления от сервера
     },
   },
 });
